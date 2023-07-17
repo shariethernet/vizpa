@@ -79,7 +79,7 @@ def write_area_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_a
             writer.writerow(item)
     return top_module
 
-def write_power_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_area):
+def write_power_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_area, pp_report = False):
     start_parsing = False
     data = []
     top_module_detect = False
@@ -133,12 +133,18 @@ def write_power_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_
                     top_module_detect = True
                     continue
                 lastindent = indent
-                switching_power = float(cells[2]) if "N/A" not in cells[2] else 0 
-                internal_power = float(cells[3]) if "N/A" not in cells[3] else 0
-                leakage_power = float(cells[4]) if "N/A" not in cells[4] else 0
-                total_power = float(cells[5]) if "N/A" not in cells[5] else 0
-                percentage = float(cells[6]) if "N/A" not in cells[6] else 0
-
+                if pp_report is False:
+                    switching_power = float(cells[2]) if "N/A" not in cells[2] else 0 
+                    internal_power = float(cells[3]) if "N/A" not in cells[3] else 0
+                    leakage_power = float(cells[4]) if "N/A" not in cells[4] else 0
+                    total_power = float(cells[5]) if "N/A" not in cells[5] else 0
+                    percentage = float(cells[6]) if "N/A" not in cells[6] else 0
+                else:
+                    switching_power = float(cells[3]) if "N/A" not in cells[3] else 0 
+                    internal_power = float(cells[2]) if "N/A" not in cells[2] else 0
+                    leakage_power = float(cells[4]) if "N/A" not in cells[4] else 0
+                    total_power = float(cells[-2]) if "N/A" not in cells[-2] else 0
+                    percentage = float(cells[-1]) if "N/A" not in cells[-1] else 0
        
 
                 unique_id = leaf_cell+"_"+str(indent)+"_"+str(total_power)
@@ -173,6 +179,7 @@ def consolidate_area_power_csv(area_csv_path, power_csv_path, csv_out_path):
     merged_df = pd.merge(area_df, power_df[['hierarchy','switching_power','internal_power','leakage_power','total_power','percent_power_total']], how='outer', on='hierarchy')
     print("merged_df", merged_df)
     merged_df.to_csv(csv_out_path, index=False)
+    
 
 def create_area_treemap(csv_path, top_module, html_path):
     df = pd.read_csv(csv_path)
@@ -193,8 +200,20 @@ def create_power_treemap(csv_path, top_module,html_path, metric="total_power"):
     fig.show()
     fig.write_html(html_path)
 def main():
+    header = """
+======================================
+██    ██ ██ ███████ ██████   █████  
+██    ██ ██    ███  ██   ██ ██   ██ 
+██    ██ ██   ███   ██████  ███████ 
+ ██  ██  ██  ███    ██      ██   ██ 
+  ████   ██ ███████ ██      ██   ██ 
+======================================                                    
+A Framework to VIZualize Power and Area of a RTL Design         
+Supports: Synopsys DC and Synopsys PrimeTime Reports                           
+"""
     area_rpt_path = "/home/local/nu/shg/area_power_viz/data/reportarea.rpt"
     power_rpt_path = "/home/local/nu/shg/area_power_viz/data/reportpower.rpt"
+    pp_power_rpt_path = "/home/local/nu/shg/area_power_viz/data/pwr_cell.rpt"
     csv_area_out_path = "/home/local/nu/shg/area_power_viz/out/area.csv"
     csv_power_out_path = "/home/local/nu/shg/area_power_viz/out/power.csv"
     csv_consolidated_path = "/home/local/nu/shg/area_power_viz/out/consolidated.csv"
@@ -203,8 +222,9 @@ def main():
     create_directory_if_not_exists(csv_area_out_path)
     top_module = write_area_csv(area_rpt_path, power_rpt_path, csv_area_out_path, min_depth=MIN_DEPTH, min_area=MIN_AREA)
     create_area_treemap(csv_area_out_path, top_module, area_html_path)
-    write_power_csv(area_rpt_path, power_rpt_path, csv_power_out_path, min_depth=MIN_DEPTH, min_area=MIN_AREA)
+    write_power_csv(area_rpt_path, pp_power_rpt_path, csv_power_out_path, min_depth=MIN_DEPTH, min_area=MIN_AREA, pp_report=True)
     consolidate_area_power_csv(csv_area_out_path, csv_power_out_path, csv_consolidated_path)
     create_power_treemap(csv_consolidated_path, top_module, power_html_path, metric="percent_power_total")
+
 if __name__ == "__main__":
     main()
