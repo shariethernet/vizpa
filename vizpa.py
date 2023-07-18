@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import plotly.express as px
+import argparse
 
 MIN_DEPTH =10
 MIN_AREA = -1
@@ -13,13 +14,18 @@ def create_directory_if_not_exists(file_path):
     if not os.path.exists(directory):
         print("Creating directory: " + directory)
         os.makedirs(directory)
+
+def create_dir_if_dir_not_exists(dir_path):
+    if not os.path.exists(dir_path):
+        print("Creating directory: " + dir_path)
+        os.makedirs(dir_path)
 """
 report_area -nosplit -hierarchy -levels <level_value>
 report_power -nosplit -hierarchy -levels <level_value>
 """
 
 
-def write_area_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_area):
+def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
     start_parsing = False
     data = []
     top_module_detect = False
@@ -79,7 +85,7 @@ def write_area_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_a
             writer.writerow(item)
     return top_module
 
-def write_power_csv(area_rpt_path, power_rpt_path, csv_out_path, min_depth, min_area, pp_report = False):
+def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False):
     start_parsing = False
     data = []
     top_module_detect = False
@@ -201,30 +207,60 @@ def create_power_treemap(csv_path, top_module,html_path, metric="total_power"):
     fig.write_html(html_path)
 def main():
     header = """
-======================================
+===========================================================
 ██    ██ ██ ███████ ██████   █████  
 ██    ██ ██    ███  ██   ██ ██   ██ 
 ██    ██ ██   ███   ██████  ███████ 
  ██  ██  ██  ███    ██      ██   ██ 
   ████   ██ ███████ ██      ██   ██ 
-======================================                                    
+============================================================                                    
 A Framework to VIZualize Power and Area of a RTL Design         
-Supports: Synopsys DC and Synopsys PrimeTime Reports                           
+Supports: Synopsys DC and Synopsys PrimeTime Reports  
+============================================================                         
 """
-    area_rpt_path = "/home/local/nu/shg/area_power_viz/data/reportarea.rpt"
-    power_rpt_path = "/home/local/nu/shg/area_power_viz/data/reportpower.rpt"
-    pp_power_rpt_path = "/home/local/nu/shg/area_power_viz/data/pwr_cell.rpt"
-    csv_area_out_path = "/home/local/nu/shg/area_power_viz/out/area.csv"
-    csv_power_out_path = "/home/local/nu/shg/area_power_viz/out/power.csv"
-    csv_consolidated_path = "/home/local/nu/shg/area_power_viz/out/consolidated.csv"
-    area_html_path = "/home/local/nu/shg/area_power_viz/out/area.html" 
-    power_html_path = "/home/local/nu/shg/area_power_viz/out/power.html"
-    create_directory_if_not_exists(csv_area_out_path)
-    top_module = write_area_csv(area_rpt_path, power_rpt_path, csv_area_out_path, min_depth=MIN_DEPTH, min_area=MIN_AREA)
+
+    print(header)
+    parser = argparse.ArgumentParser(description = "VIZPA - A Framework to VIZualize Power and Area of a RTL Design. Supports Synopsys DC and PTPX Reports")
+    parser.add_argument('-a','--area',type=str,help="Path to the area report [default: \"area.rpt\"]", default = "area.rpt")
+    parser.add_argument('-p','--power',type=str,help = "Path to the power report to generate power heatmap also. When not specified power heat map will not be generated", default = None)
+    parser.add_argument('-o','--output_dir',type=str, help = "Specify the output directory for the generated files [default: \"out\"]", default ="out")
+    parser.add_argument('-md','--max_depth', type=int, help = "Specify the maximum depth of the hierarchy [default:10]", default=10)
+    parser.add_argument('-ma','--min_area', type=int, help = "Specify the minimum area to be considered for the heatmap [default:10]", default=10)
+    parser.add_argument('-ptpx','--ptpx', action="store_true", help = "Specify if the power report is a PTPX report [default:False]", default=False)
+    parser.add_argument('-pm','--power_metric', type=str, help = "Specify the power metric to be used for the heatmap [default:percent_power_total]", default="percent_power_total")
+    args = parser.parse_args()
+
+    area_rpt_path = args.area
+    power_rpt_path = args.power
+    
+    out_dir = args.output_dir
+    create_dir_if_dir_not_exists(out_dir)
+
+    max_depth = args.max_depth
+    min_area = args.min_area
+
+    csv_area_out_path = os.path.join(out_dir,"area.csv")
+    csv_power_out_path = os.path.join(out_dir,"power.csv")
+    csv_consolidated_path = os.path.join(out_dir,"consolidated.csv")
+    area_html_path = os.path.join(out_dir,"area.html")
+    power_html_path = os.path.join(out_dir,"power.html")
+
+    #area_rpt_path = "/home/local/nu/shg/area_power_viz/data/reportarea.rpt"
+    #power_rpt_path = "/home/local/nu/shg/area_power_viz/data/reportpower.rpt"
+    #pp_power_rpt_path = "/home/local/nu/shg/area_power_viz/data/pwr_cell.rpt"
+    #csv_area_out_path = "/home/local/nu/shg/area_power_viz/out/area.csv"
+    #csv_power_out_path = "/home/local/nu/shg/area_power_viz/out/power.csv"
+    #csv_consolidated_path = "/home/local/nu/shg/area_power_viz/out/consolidated.csv"
+    #area_html_path = "/home/local/nu/shg/area_power_viz/out/area.html" 
+    #power_html_path = "/home/local/nu/shg/area_power_viz/out/power.html"
+    #create_directory_if_not_exists(csv_area_out_path)
+
+    top_module = write_area_csv(area_rpt_path, csv_area_out_path, min_depth=max_depth, min_area=min_area)
     create_area_treemap(csv_area_out_path, top_module, area_html_path)
-    write_power_csv(area_rpt_path, pp_power_rpt_path, csv_power_out_path, min_depth=MIN_DEPTH, min_area=MIN_AREA, pp_report=True)
-    consolidate_area_power_csv(csv_area_out_path, csv_power_out_path, csv_consolidated_path)
-    create_power_treemap(csv_consolidated_path, top_module, power_html_path, metric="percent_power_total")
+    if args.power is not None:
+        write_power_csv( power_rpt_path, csv_power_out_path, min_depth=max_depth, pp_report=args.ptpx)
+        consolidate_area_power_csv(csv_area_out_path, csv_power_out_path, csv_consolidated_path)
+        create_power_treemap(csv_consolidated_path, top_module, power_html_path, metric=args.power_metric)
 
 if __name__ == "__main__":
     main()
