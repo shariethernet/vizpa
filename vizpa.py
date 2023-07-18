@@ -10,14 +10,14 @@ MIN_AREA = -1
 
 def create_directory_if_not_exists(file_path):
     directory = os.path.dirname(file_path)
-    print("Checking if directory exists: " + directory)
+    #print("Checking if directory exists: " + directory)
     if not os.path.exists(directory):
-        print("Creating directory: " + directory)
+        #print("Creating directory: " + directory)
         os.makedirs(directory)
 
 def create_dir_if_dir_not_exists(dir_path):
     if not os.path.exists(dir_path):
-        print("Creating directory: " + dir_path)
+        #print("Creating directory: " + dir_path)
         os.makedirs(dir_path)
 """
 report_area -nosplit -hierarchy -levels <level_value>
@@ -26,6 +26,7 @@ report_power -nosplit -hierarchy -levels <level_value>
 
 
 def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
+    print("============ Parsing Area reports and writing csv =================")
     start_parsing = False
     data = []
     top_module_detect = False
@@ -35,7 +36,6 @@ def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
         for line in file:
             line = line.strip()
             if line.startswith('Hierarchical cell'):
-                print("Start parsing")
                 start_parsing = True
                 # Skip two lines
                 next(file)
@@ -44,14 +44,13 @@ def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
                 continue
 
             if start_parsing:
-                print(line)
+                #print(line)
                 #Skip 2 lines
                 if line.startswith('------'):
                     start_parsing = False
                     continue
 
                 cells = line.split()
-                print("cells", cells)
                 hierarchical_cell = cells[0]
                 absolute_total_area = (float(cells[1]))
                 percent_total = cells[2]
@@ -64,7 +63,6 @@ def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
                     continue
                 
                 parent_cell = cell_hier[-2] if len(cell_hier) >= 2 else top_module
-                print("parent_cell", parent_cell, "leaf_cell", leaf_cell)
                 unique_id = leaf_cell+"_"+str(indent)+"_"+str(absolute_total_area)
                 if(indent < min_depth and int(float(absolute_total_area)) > min_area):
                     data.append({"hierarchy":hierarchical_cell,
@@ -86,6 +84,7 @@ def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
     return top_module
 
 def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False):
+    print("============ Parsing power reports and writing csv =================")
     start_parsing = False
     data = []
     top_module_detect = False
@@ -99,7 +98,6 @@ def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False)
         for line in file:
             #line = line.strip()
             if line.startswith('Hierarchy'):
-                print("Start parsing")
                 start_parsing = True
                 # Skip one line
                 next(file)
@@ -107,7 +105,7 @@ def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False)
                 continue
 
             if start_parsing:
-                print(line)
+                #print(line)
                 #Skip 2 lines
                 if line.startswith('------'):
                     start_parsing = False
@@ -118,8 +116,6 @@ def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False)
                 if cells[0] == "1":
                     continue
                 indent = int((len(line) - len(line.lstrip()))/2)
-                print("indent: ", indent)
-                print("cells", cells)
                 leaf_cell = cells[0]
                 if(indent > lastindent):
                     parentarray.append(lastinstance)
@@ -127,11 +123,8 @@ def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False)
                 elif(indent < lastindent):
                     while(len(parentarray) > (indent+1)):
                         tmp = parentarray.pop()
-                        print(tmp)
                     parent = parentarray[-1]
-                print("parentarray", parentarray)
                 parent_array_2 =  parentarray[2:] if indent !=1 else parentarray[2:]
-                print("parent_array_2", parent_array_2)
                 hierarchy = "/".join(parent_array_2)+"/"+leaf_cell if len(parent_array_2) != 0 else leaf_cell
                 lastinstance = leaf_cell
                 if top_module_detect == False:
@@ -177,19 +170,17 @@ def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False)
     return top_module
 
 def consolidate_area_power_csv(area_csv_path, power_csv_path, csv_out_path):
+    print("============ Mapping hierarchies in area and power reports and consolidating csv =================")
     area_df = pd.read_csv(area_csv_path)
     power_df = pd.read_csv(power_csv_path)
     common_cols = list(set(area_df.columns) & set(power_df.columns))
-    print("area_df", area_df)
-    print("power_df", power_df)
     merged_df = pd.merge(area_df, power_df[['hierarchy','switching_power','internal_power','leakage_power','total_power','percent_power_total']], how='outer', on='hierarchy')
-    print("merged_df", merged_df)
     merged_df.to_csv(csv_out_path, index=False)
     
 
 def create_area_treemap(csv_path, top_module, html_path):
     df = pd.read_csv(csv_path)
-    print("Generating Area treemap")
+    print("============ Generating Area treemap =================")
     title = "Area Viz for Top module: " + top_module
     fig = px.treemap(df, parents='parent', names= 'leaf_cell',title=title, values='absolute_total_area',  branchvalues='total')
     fig.update_traces(root_color="lightgrey")
@@ -199,7 +190,7 @@ def create_area_treemap(csv_path, top_module, html_path):
 
 def create_power_treemap(csv_path, top_module,html_path, metric="total_power"):
     df=pd.read_csv(csv_path)
-    print("Generating Power treemap")
+    print("============ Generating Power heatmap =================")
     title = "Power Viz for Top module: " + top_module
     fig = px.treemap(df, parents='parent', names= 'leaf_cell',title=title, values='absolute_total_area', color=metric,  branchvalues='total')
     fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
