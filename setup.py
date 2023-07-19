@@ -11,7 +11,7 @@ setup(
     description="A Framework to VIZualize Power and Area of a RTL Design",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/vizpa",
+    url="https://github.com/shariethernet/vizpa",
     packages=["vizpa"],
     entry_points={
         "console_scripts": [
