@@ -45,7 +45,7 @@ Use the below command to generate hierarchical power reports
 ### Tool Options
 
 To view all the options of the tool run 
-```python3 vizpa.py -h```
+```vizpa -h```
 
 ```
 ===========================================================
