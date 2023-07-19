@@ -1,3 +1,5 @@
 *.html
 *.csv
 out/
+vizpa.egg-info/
+__pycache__/
