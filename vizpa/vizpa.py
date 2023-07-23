@@ -4,6 +4,10 @@ import numpy as np
 import os
 import plotly.express as px
 import argparse
+try:
+    from vizpa.vizpa_cadence import viz_area_genus, viz_power_joules
+except:
+    print("Cadence parsers are not available in the open source version")
 
 MIN_DEPTH =10
 MIN_AREA = -1
@@ -25,7 +29,7 @@ report_power -nosplit -hierarchy -levels <level_value>
 """
 
 
-def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
+def write_dc_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
     print("============ Parsing Area reports and writing csv =================")
     start_parsing = False
     data = []
@@ -83,7 +87,7 @@ def write_area_csv(area_rpt_path, csv_out_path, min_depth, min_area):
             writer.writerow(item)
     return top_module
 
-def write_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False):
+def write_dc_ptpx_power_csv( power_rpt_path, csv_out_path, min_depth, pp_report = False):
     print("============ Parsing power reports and writing csv =================")
     start_parsing = False
     data = []
@@ -196,9 +200,10 @@ def create_power_treemap(csv_path, top_module,html_path, metric="total_power"):
     fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
     fig.show()
     fig.write_html(html_path)
+
 def main():
     header = """
-===========================================================
+============================================================
 ██    ██ ██ ███████ ██████   █████  
 ██    ██ ██    ███  ██   ██ ██   ██ 
 ██    ██ ██   ███   ██████  ███████ 
@@ -206,23 +211,31 @@ def main():
   ████   ██ ███████ ██      ██   ██ 
 ============================================================                                    
 A Framework to VIZualize Power and Area of a RTL Design         
-Supports: Synopsys DC and Synopsys PrimeTime Reports  
+Supports: Synopsys DC and Synopsys PrimeTime Reports
+Extended Support: Cadence Genus and Joules Reports (Not available in open source version)
 ============================================================                         
 """
 
     print(header)
     parser = argparse.ArgumentParser(description = "VIZPA - A Framework to VIZualize Power and Area of a RTL Design. Supports Synopsys DC and PTPX Reports")
-    parser.add_argument('-a','--area',type=str,help="Path to the area report [default: \"area.rpt\"]", default = "area.rpt")
+    parser.add_argument('-a','--area',type=str,help="Path to the area report [default: \"area.rpt\"]", default = None)
+    parser.add_argument('-at','--area_tool', type=str, help = "Specify the tool used to generate the area report [default:dc]", default="dc"
+                        , choices=['dc','genus'])
     parser.add_argument('-p','--power',type=str,help = "Path to the power report to generate power heatmap also. When not specified power heat map will not be generated", default = None)
+    parser.add_argument('-pt','--power_tool', type=str, help = "Specify the tool used to generate the power report [default:dc]", default="dc", choices=['dc','ptpx','joules'])
     parser.add_argument('-o','--output_dir',type=str, help = "Specify the output directory for the generated files [default: \"out\"]", default ="out")
     parser.add_argument('-md','--max_depth', type=int, help = "Specify the maximum depth of the hierarchy [default:10]", default=10)
     parser.add_argument('-ma','--min_area', type=int, help = "Specify the minimum area to be considered for the heatmap [default:10]", default=10)
-    parser.add_argument('-ptpx','--ptpx', action="store_true", help = "Specify if the power report is a PTPX report [default:False]", default=False)
     parser.add_argument('-pm','--power_metric', type=str, help = "Specify the power metric to be used for the heatmap [default:percent_power_total]", default="percent_power_total")
     args = parser.parse_args()
 
     area_rpt_path = args.area
     power_rpt_path = args.power
+
+    area_tool = args.area_tool
+    power_tool = args.power_tool
+    if args.power_tool == "ptpx":
+        pp_report = True
     
     out_dir = args.output_dir
     create_dir_if_dir_not_exists(out_dir)
@@ -245,13 +258,19 @@ Supports: Synopsys DC and Synopsys PrimeTime Reports
     #area_html_path = "/home/local/nu/shg/area_power_viz/out/area.html" 
     #power_html_path = "/home/local/nu/shg/area_power_viz/out/power.html"
     #create_directory_if_not_exists(csv_area_out_path)
+    if args.area is not None:
+        if area_tool == "dc":
+            top_module = write_dc_area_csv(area_rpt_path, csv_area_out_path, min_depth=max_depth, min_area=min_area)
+            create_area_treemap(csv_area_out_path, top_module, area_html_path)
+        elif area_tool == "genus":
+            viz_area_genus(area_rpt_path, output_dir=out_dir, min_depth=max_depth, min_area=min_area)
 
-    top_module = write_area_csv(area_rpt_path, csv_area_out_path, min_depth=max_depth, min_area=min_area)
-    create_area_treemap(csv_area_out_path, top_module, area_html_path)
     if args.power is not None:
-        write_power_csv( power_rpt_path, csv_power_out_path, min_depth=max_depth, pp_report=args.ptpx)
-        consolidate_area_power_csv(csv_area_out_path, csv_power_out_path, csv_consolidated_path)
-        create_power_treemap(csv_consolidated_path, top_module, power_html_path, metric=args.power_metric)
-
+        if power_tool in ["dc","ptpx"]:
+            write_dc_ptpx_power_csv( power_rpt_path, csv_power_out_path, min_depth=max_depth, pp_report=pp_report)
+            consolidate_area_power_csv(csv_area_out_path, csv_power_out_path, csv_consolidated_path)
+            create_power_treemap(csv_consolidated_path, top_module, power_html_path, metric=args.power_metric)
+        elif power_tool == "joules":
+            viz_power_joules(power_rpt_path, output_dir=out_dir, max_depth=max_depth, min_area=min_area, power_metric=args.power_metric)
 if __name__ == "__main__":
     main()
